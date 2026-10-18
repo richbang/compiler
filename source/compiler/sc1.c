@@ -222,6 +222,7 @@ static int sc_parsenum = 0;     /* number of the extra parses */
 static int wq[wqTABSZ];         /* "while queue", internal stack for nested loops */
 static int *wqptr;              /* pointer to next entry */
 static time_t now;              /* current timestamp, for built-in constants "__time" and "__timestamp" */
+static int fixed_epoch;        /* "now" comes from SOURCE_DATE_EPOCH (reproducible builds) */
 static char reportname[_MAX_PATH];/* report file name */
 #if !defined SC_LIGHT
   static char sc_rootpath[_MAX_PATH];
@@ -1675,7 +1676,22 @@ static void setconstants(void)
   add_builtin_constant("__compat",pc_compat,sGLOBAL,0);
 
   now=time(NULL);
-  loctm=*localtime(&now);
+  /* reproducible builds (https://reproducible-builds.org/specs/source-date-epoch/):
+   * when SOURCE_DATE_EPOCH is set, use it instead of the current time and treat it as UTC,
+   * so "__timestamp", "__time" and "__date" (and the AMX built from them) do not change between builds */
+  fixed_epoch=0;
+  {
+    const char *sde=getenv("SOURCE_DATE_EPOCH");
+    if (sde!=NULL && *sde!='\0') {
+      char *end;
+      long long v=strtoll(sde,&end,10);
+      if (*end=='\0' && v>=0) {
+        now=(time_t)v;
+        fixed_epoch=1;
+      } /* if */
+    } /* if */
+  }
+  loctm=fixed_epoch ? *gmtime(&now) : *localtime(&now);
   utctm=*gmtime(&now);
   loctime=now+(loctm.tm_sec-utctm.tm_sec)+(loctm.tm_min-utctm.tm_min)*60
           +(loctm.tm_hour-utctm.tm_hour)*60*60+(loctm.tm_mday-utctm.tm_mday)*60*60*24;
@@ -1701,9 +1717,9 @@ static void setstringconstants(void)
   assert(sc_status!=statIDLE);
   add_builtin_string_constant("__file","",sGLOBAL);
 
-  strftime(timebuf,arraysize(timebuf),"%H:%M:%S",localtime(&now));
+  strftime(timebuf,arraysize(timebuf),"%H:%M:%S",fixed_epoch ? gmtime(&now) : localtime(&now));
   add_builtin_string_constant("__time",timebuf,sGLOBAL);
-  strftime(datebuf,arraysize(datebuf),"%d %b %Y",localtime(&now));
+  strftime(datebuf,arraysize(datebuf),"%d %b %Y",fixed_epoch ? gmtime(&now) : localtime(&now));
   add_builtin_string_constant("__date",datebuf,sGLOBAL);
 }
 
