@@ -3742,7 +3742,8 @@ SC_FUNC char *funcdisplayname(char *dest,char *funcname)
   constvalue *tagsym[2];
   int unary;
 
-  if (isalpha(*funcname) || *funcname=='_' || *funcname==PUBLIC_CHAR || *funcname=='\0') {
+  if (isalpha((unsigned char)*funcname) || *funcname=='_' || *funcname==PUBLIC_CHAR || *funcname=='\0'
+      || (unsigned char)*funcname>=0x80) {   /* korean_custom: multi-byte identifier, not an operator */
     if (dest!=funcname)
       strcpy(dest,funcname);
     return dest;

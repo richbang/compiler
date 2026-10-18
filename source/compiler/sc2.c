@@ -2916,7 +2916,11 @@ static cell litchar(const unsigned char **lptr,int flags)
  */
 static int alpha(char c)
 {
-  return (isalpha(c) || c=='_' || c==PUBLIC_CHAR);
+  /* korean_custom: bytes >= 0x80 are letters too, so identifiers may contain
+   * multi-byte characters (CP949 or UTF-8 Korean), e.g. CMD:<Korean name>.
+   * The bytes are kept as they are, so the source encoding decides the bytes
+   * of public names (LSRP compiles CP949 sources, the SA-MP client sends CP949). */
+  return (isalpha((unsigned char)c) || c=='_' || c==PUBLIC_CHAR || (unsigned char)c>=0x80);
 }
 
 /*  alphanum
@@ -2925,7 +2929,7 @@ static int alpha(char c)
  */
 SC_FUNC int alphanum(char c)
 {
-  return (alpha(c) || isdigit(c));
+  return (alpha(c) || isdigit((unsigned char)c));
 }
 
 /*  ishex

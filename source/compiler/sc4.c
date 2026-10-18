@@ -775,7 +775,7 @@ SC_FUNC void ffcall(symbol *sym,const char *label,int numargs)
       stgwrite(sym->name);
     } /* if */
     if (sc_asmfile
-        && (label!=NULL || (!isalpha(sym->name[0]) && sym->name[0]!='_'  && sym->name[0]!=sc_ctrlchar)))
+        && (label!=NULL || (!isalpha((unsigned char)sym->name[0]) && (unsigned char)sym->name[0]<0x80 && sym->name[0]!='_'  && sym->name[0]!=sc_ctrlchar)))
     {
       stgwrite("\t; ");
       stgwrite(symname);
