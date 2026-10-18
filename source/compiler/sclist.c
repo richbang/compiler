@@ -102,7 +102,8 @@ static stringpair *find_stringpair(stringpair *cur,char *first,int matchlength)
   assert(matchlength>0);  /* the function cannot handle zero-length comparison */
   assert(first!=NULL);
   while (cur!=NULL && result<=0) {
-    result=(int)*cur->first - (int)*first;
+    /* korean_custom: compare as unsigned bytes, the same order strcmp() used to sort the list */
+    result=(int)(unsigned char)*cur->first - (int)(unsigned char)*first;
     if (result==0 && matchlength==cur->matchlength) {
       result=strncmp(cur->first,first,matchlength);
       if (result==0)
@@ -258,16 +259,18 @@ SC_FUNC void delete_pathtable(void)
 
 static stringpair substpair = { NULL, NULL, NULL};  /* list of substitution pairs */
 
-static stringpair *substindex['z'-PUBLIC_CHAR+1]; /* quick index to first character */
+/* korean_custom: indexed by the full byte value, because identifiers may start with
+ * a byte >= 0x80 (multi-byte Korean); the original table only covered '@'..'z' */
+static stringpair *substindex[256]; /* quick index to first character */
+#define SUBST_FIRSTCHAR_OK(c) ((c)>='A' && (c)<='Z' || (c)>='a' && (c)<='z' || (c)=='_' || (c)==PUBLIC_CHAR || (unsigned char)(c)>=0x80)
 static void adjustindex(char c)
 {
   stringpair *cur;
-  assert(c>='A' && c<='Z' || c>='a' && c<='z' || c=='_' || c==PUBLIC_CHAR);
-  assert(PUBLIC_CHAR<'A' && 'A'<'_' && '_'<'z');
+  assert(SUBST_FIRSTCHAR_OK(c));
 
   for (cur=substpair.next; cur!=NULL && cur->first[0]!=c; cur=cur->next)
     /* nothing */;
-  substindex[(int)c-PUBLIC_CHAR]=cur;
+  substindex[(unsigned char)c]=cur;
 }
 
 SC_FUNC stringpair *insert_subst(char *pattern,char *substitution,int prefixlen)
@@ -287,8 +290,8 @@ SC_FUNC stringpair *find_subst(char *name,int length)
   stringpair *item;
   assert(name!=NULL);
   assert(length>0);
-  assert(*name>='A' && *name<='Z' || *name>='a' && *name<='z' || *name=='_' || *name==PUBLIC_CHAR);
-  item=substindex[(int)*name-PUBLIC_CHAR];
+  assert(SUBST_FIRSTCHAR_OK(*name));
+  item=substindex[(unsigned char)*name];
   if (item!=NULL)
     item=find_stringpair(item,name,length);
   return item;
@@ -299,8 +302,8 @@ SC_FUNC int delete_subst(char *name,int length)
   stringpair *item;
   assert(name!=NULL);
   assert(length>0);
-  assert(*name>='A' && *name<='Z' || *name>='a' && *name<='z' || *name=='_' || *name==PUBLIC_CHAR);
-  item=substindex[(int)*name-PUBLIC_CHAR];
+  assert(SUBST_FIRSTCHAR_OK(*name));
+  item=substindex[(unsigned char)*name];
   if (item!=NULL)
     item=find_stringpair(item,name,length);
   if (item==NULL)
